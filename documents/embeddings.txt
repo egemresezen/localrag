@@ -1,0 +1,3 @@
+Embeddings convert text into numerical vectors that represent semantic meaning. Texts with similar meanings produce similar vectors.
+
+Cosine similarity compares two embedding vectors. A higher cosine similarity score indicates that two texts are more closely related.

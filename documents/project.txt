@@ -1,0 +1,3 @@
+The Local RAG Assistant answers questions about Foundry Local, embeddings, SQLite, and retrieval-augmented generation.
+
+The application works offline after the required models have been downloaded. User documents and generated embeddings remain on the local computer.

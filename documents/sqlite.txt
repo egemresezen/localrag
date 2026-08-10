@@ -1,0 +1,3 @@
+SQLite is a lightweight and serverless database. It stores the entire database in a single local file and does not require a separate database server.
+
+The RAG application uses SQLite to store document chunks, source names, and embedding vectors for local retrieval.
