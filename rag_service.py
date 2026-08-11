@@ -1,8 +1,14 @@
 import math
 
-from foundry_local_sdk import Configuration, FoundryLocalManager
+from foundry_local_sdk import (
+    Configuration,
+    FoundryLocalManager,
+)
 
-from database import get_all_documents, replace_document
+from database import (
+    get_all_documents,
+    replace_document,
+)
 from document_processor import process_document
 
 
@@ -10,13 +16,17 @@ class RagService:
     def __init__(self):
         print("[1/5] Foundry Local is starting...")
 
-        config = Configuration(app_name="localdoc_ai")
+        config = Configuration(
+            app_name="localdoc_ai"
+        )
         FoundryLocalManager.initialize(config)
 
         self.manager = FoundryLocalManager.instance
         catalog = self.manager.catalog
 
-        print("[2/5] Cached models are being checked...")
+        print(
+            "[2/5] Cached models are being checked..."
+        )
 
         cached_models = catalog.get_cached_models()
 
@@ -26,7 +36,8 @@ class RagService:
             candidates = [
                 cached_model
                 for cached_model in cached_models
-                if cached_model.alias.lower() == alias.lower()
+                if cached_model.alias.lower()
+                == alias.lower()
             ]
 
             if candidates:
@@ -40,8 +51,11 @@ class RagService:
                 )
 
                 model.select_variant(cpu_variant)
+
             else:
-                print(f"{alias} is not cached. Downloading...")
+                print(
+                    f"{alias} is not cached. Downloading..."
+                )
 
                 model.download(
                     lambda progress: print(
@@ -57,16 +71,21 @@ class RagService:
         self.embedding_model = get_cached_model(
             "qwen3-embedding-0.6b"
         )
+
         self.chat_model = get_cached_model(
             "phi-3.5-mini"
         )
 
-        print("[3/5] Embedding model is loading...")
+        print(
+            "[3/5] Embedding model is loading..."
+        )
 
         if not self.embedding_model.is_loaded:
             self.embedding_model.load()
 
-        print("[4/5] Chat model is loading...")
+        print(
+            "[4/5] Chat model is loading..."
+        )
 
         if not self.chat_model.is_loaded:
             self.chat_model.load()
@@ -74,7 +93,10 @@ class RagService:
         self.embedding_client = (
             self.embedding_model.get_embedding_client()
         )
-        self.chat_client = self.chat_model.get_chat_client()
+
+        self.chat_client = (
+            self.chat_model.get_chat_client()
+        )
 
         self.chat_client.settings.temperature = 0.0
         self.chat_client.settings.max_tokens = 300
@@ -89,23 +111,36 @@ class RagService:
         )
 
         magnitude_a = math.sqrt(
-            sum(value * value for value in vector_a)
+            sum(
+                value * value
+                for value in vector_a
+            )
         )
+
         magnitude_b = math.sqrt(
-            sum(value * value for value in vector_b)
+            sum(
+                value * value
+                for value in vector_b
+            )
         )
 
         if magnitude_a == 0 or magnitude_b == 0:
             return 0.0
 
-        return dot_product / (magnitude_a * magnitude_b)
+        return (
+            dot_product
+            / (magnitude_a * magnitude_b)
+        )
 
     def retrieve(self, question, top_k=3):
         documents = get_all_documents()
 
         question_response = (
-            self.embedding_client.generate_embedding(question)
+            self.embedding_client.generate_embedding(
+                question
+            )
         )
+
         question_embedding = (
             question_response.data[0].embedding
         )
@@ -167,25 +202,69 @@ class RagService:
             },
         ]
 
-        response = self.chat_client.complete_chat(messages)
-        answer_text = response.choices[0].message.content
+        response = self.chat_client.complete_chat(
+            messages
+        )
+
+        answer_text = (
+            response.choices[0].message.content
+        )
 
         return answer_text, retrieved_documents
 
-    def index_document(self, file_name, file_bytes):
+    def index_document(
+        self,
+        file_name,
+        file_bytes,
+        batch_size=8,
+    ):
         chunks = process_document(
             file_name,
             file_bytes,
         )
 
-        embedding_response = (
-            self.embedding_client.generate_embeddings(chunks)
-        )
+        if not chunks:
+            raise ValueError(
+                "No readable content was found "
+                "in the document."
+            )
 
-        embeddings = [
-            item.embedding
-            for item in embedding_response.data
-        ]
+        embeddings = []
+        total_batches = (
+            len(chunks) + batch_size - 1
+        ) // batch_size
+
+        for batch_number, start_index in enumerate(
+            range(0, len(chunks), batch_size),
+            start=1,
+        ):
+            batch = chunks[
+                start_index:start_index + batch_size
+            ]
+
+            print(
+                "Generating embeddings: "
+                f"batch {batch_number}/{total_batches}"
+            )
+
+            embedding_response = (
+                self.embedding_client.generate_embeddings(
+                    batch
+                )
+            )
+
+            batch_embeddings = [
+                item.embedding
+                for item in embedding_response.data
+            ]
+
+            embeddings.extend(batch_embeddings)
+
+        if len(embeddings) != len(chunks):
+            raise RuntimeError(
+                "Some document chunks could not "
+                "be embedded."
+            )
 
         replace_document(
             source=file_name,

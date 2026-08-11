@@ -1,76 +1,126 @@
-import re
 from io import BytesIO
 from pathlib import Path
 
+from docx import Document as WordDocument
 from pypdf import PdfReader
 
 
-def extract_text(file_name, file_bytes):
-    extension = Path(file_name).suffix.lower()
-
-    if extension == ".txt":
-        try:
-            return file_bytes.decode("utf-8-sig")
-        except UnicodeDecodeError:
-            return file_bytes.decode("latin-1")
-
-    if extension == ".pdf":
-        reader = PdfReader(BytesIO(file_bytes))
-        pages = []
-
-        for page_number, page in enumerate(
-            reader.pages,
-            start=1,
-        ):
-            page_text = page.extract_text() or ""
-
-            if page_text.strip():
-                pages.append(
-                    f"Page {page_number}\n{page_text.strip()}"
-                )
-
-        if not pages:
-            raise ValueError(
-                "No readable text was found in the PDF. "
-                "Scanned PDFs require OCR support."
-            )
-
-        return "\n\n".join(pages)
-
-    raise ValueError(
-        "Unsupported file type. Only PDF and TXT are supported."
-    )
+def read_txt(file_bytes):
+    try:
+        return file_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        return file_bytes.decode("latin-1")
 
 
-def chunk_text(text, chunk_size=900, overlap=150):
-    normalized_text = re.sub(r"\s+", " ", text).strip()
+def read_pdf(file_bytes):
+    reader = PdfReader(BytesIO(file_bytes))
 
-    if not normalized_text:
-        raise ValueError("The document does not contain readable text.")
+    pages = []
 
-    if overlap >= chunk_size:
+    for page in reader.pages:
+        page_text = page.extract_text()
+
+        if page_text:
+            pages.append(page_text)
+
+    if not pages:
         raise ValueError(
-            "Chunk overlap must be smaller than chunk size."
+            "No readable text was found in the PDF. "
+            "Scanned PDFs require OCR support."
         )
 
-    step_size = chunk_size - overlap
+    return "\n\n".join(pages)
 
-    chunks = [
-        normalized_text[start:start + chunk_size]
-        for start in range(
-            0,
-            len(normalized_text),
-            step_size,
+
+def read_docx(file_bytes):
+    document = WordDocument(BytesIO(file_bytes))
+
+    contents = []
+
+    # Normal paragraphs
+    for paragraph in document.paragraphs:
+        text = paragraph.text.strip()
+
+        if text:
+            contents.append(text)
+
+    # Text contained inside tables
+    for table in document.tables:
+        for row in table.rows:
+            cells = [
+                cell.text.strip()
+                for cell in row.cells
+                if cell.text.strip()
+            ]
+
+            if cells:
+                contents.append(" | ".join(cells))
+
+    if not contents:
+        raise ValueError(
+            "No readable text was found in the DOCX file."
         )
+
+    return "\n\n".join(contents)
+
+
+def clean_text(text):
+    lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip()
     ]
 
-    return [
-        chunk.strip()
-        for chunk in chunks
-        if chunk.strip()
-    ]
+    return "\n".join(lines)
+
+
+def split_into_chunks(
+    text,
+    chunk_size=900,
+    overlap=150,
+):
+    chunks = []
+    start = 0
+
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+
+        chunk = text[start:end].strip()
+
+        if chunk:
+            chunks.append(chunk)
+
+        if end >= len(text):
+            break
+
+        start = end - overlap
+
+    return chunks
 
 
 def process_document(file_name, file_bytes):
-    text = extract_text(file_name, file_bytes)
-    return chunk_text(text)
+    extension = Path(file_name).suffix.lower()
+
+    if extension == ".txt":
+        text = read_txt(file_bytes)
+
+    elif extension == ".pdf":
+        text = read_pdf(file_bytes)
+
+    elif extension == ".docx":
+        text = read_docx(file_bytes)
+
+    else:
+        raise ValueError(
+            "Unsupported file type. "
+            "Only PDF, DOCX and TXT files are supported."
+        )
+
+    text = clean_text(text)
+
+    if not text:
+        raise ValueError(
+            "No readable text was found in the document."
+        )
+
+    return split_into_chunks(text)

@@ -21,19 +21,25 @@ if "messages" not in st.session_state:
 
 
 if "notification" in st.session_state:
-    st.success(st.session_state.pop("notification"))
+    st.success(
+        st.session_state.pop("notification")
+    )
 
 
 documents = get_all_documents()
 
 source_names = sorted(
-    {document["source"] for document in documents}
+    {
+        document["source"]
+        for document in documents
+    }
 )
 
 
 st.title("📚 LocalDoc AI")
+
 st.caption(
-    "Upload PDF or TXT documents and ask questions "
+    "Upload PDF, DOCX or TXT documents and ask questions "
     "using a fully local RAG application."
 )
 
@@ -42,8 +48,16 @@ with st.sidebar:
     st.header("System")
 
     st.success("Local mode")
-    st.metric("Documents", len(source_names))
-    st.metric("Document chunks", len(documents))
+
+    st.metric(
+        "Documents",
+        len(source_names),
+    )
+
+    st.metric(
+        "Document chunks",
+        len(documents),
+    )
 
     top_k = st.slider(
         "Retrieved chunks",
@@ -61,7 +75,10 @@ with st.sidebar:
 
 
 chat_tab, documents_tab = st.tabs(
-    ["💬 Chat", "📄 Knowledge Base"]
+    [
+        "💬 Chat",
+        "📄 Knowledge Base",
+    ]
 )
 
 
@@ -85,7 +102,10 @@ with chat_tab:
                                 f"Similarity: "
                                 f"{source['score']:.4f}"
                             )
-                            st.write(source["content"])
+
+                            st.write(
+                                source["content"]
+                            )
 
         question = st.chat_input(
             "Ask a question about the documents..."
@@ -110,21 +130,28 @@ with chat_tab:
                     try:
                         rag_service = get_rag_service()
 
-                        answer, sources = rag_service.answer(
-                            question,
-                            top_k=top_k,
+                        answer, sources = (
+                            rag_service.answer(
+                                question,
+                                top_k=top_k,
+                            )
                         )
 
                         st.write(answer)
 
-                        with st.expander("Retrieved sources"):
+                        with st.expander(
+                            "Retrieved sources"
+                        ):
                             for source in sources:
                                 st.caption(
                                     f"{source['source']} · "
                                     f"Similarity: "
                                     f"{source['score']:.4f}"
                                 )
-                                st.write(source["content"])
+
+                                st.write(
+                                    source["content"]
+                                )
 
                         st.session_state.messages.append(
                             {
@@ -144,12 +171,16 @@ with documents_tab:
     st.subheader("Add Documents")
 
     uploaded_files = st.file_uploader(
-        "Upload PDF or TXT documents",
-        type=["pdf", "txt"],
+        "Upload PDF, DOCX or TXT documents",
+        type=[
+            "pdf",
+            "docx",
+            "txt",
+        ],
         accept_multiple_files=True,
         help=(
-            "Text-based PDFs are supported. "
-            "Scanned PDFs require OCR."
+            "Text-based PDF, DOCX and TXT files are "
+            "supported. Scanned PDFs require OCR."
         ),
     )
 
@@ -171,7 +202,9 @@ with documents_tab:
                     chunk_count = (
                         rag_service.index_document(
                             file_name=uploaded_file.name,
-                            file_bytes=uploaded_file.getvalue(),
+                            file_bytes=(
+                                uploaded_file.getvalue()
+                            ),
                         )
                     )
 
@@ -181,6 +214,7 @@ with documents_tab:
                     )
 
             st.session_state.messages = []
+
             st.session_state["notification"] = (
                 "Documents added successfully: "
                 + ", ".join(indexed_files)
@@ -197,7 +231,9 @@ with documents_tab:
     st.subheader("Indexed Documents")
 
     if not documents:
-        st.info("No documents have been indexed.")
+        st.info(
+            "No documents have been indexed."
+        )
 
     else:
         for source_name in source_names:
@@ -208,16 +244,18 @@ with documents_tab:
             ]
 
             with st.container(border=True):
-                title_column, button_column = st.columns(
-                    [5, 1]
+                title_column, button_column = (
+                    st.columns([5, 1])
                 )
 
                 with title_column:
                     st.markdown(
                         f"### {source_name}"
                     )
+
                     st.caption(
-                        f"{len(source_chunks)} indexed chunks"
+                        f"{len(source_chunks)} "
+                        "indexed chunks"
                     )
 
                 with button_column:
@@ -229,13 +267,18 @@ with documents_tab:
 
                 if delete_clicked:
                     delete_document(source_name)
+
                     st.session_state.messages = []
+
                     st.session_state["notification"] = (
                         f"{source_name} was deleted."
                     )
+
                     st.rerun()
 
-                with st.expander("View document chunks"):
+                with st.expander(
+                    "View document chunks"
+                ):
                     for index, chunk in enumerate(
                         source_chunks,
                         start=1,
@@ -243,4 +286,7 @@ with documents_tab:
                         st.markdown(
                             f"**Chunk {index}**"
                         )
-                        st.write(chunk["content"])
+
+                        st.write(
+                            chunk["content"]
+                        )
