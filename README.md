@@ -1,29 +1,75 @@
-# Local RAG Technical Support Assistant
+# LocalDoc AI
 
-A local question-answering assistant built with Microsoft Foundry Local, SQLite, and the Retrieval-Augmented Generation (RAG) pattern.
+A fully local Retrieval-Augmented Generation (RAG) application for asking questions about your own documents.
 
-The application retrieves relevant information from local documents and generates grounded answers without requiring a cloud API.
+LocalDoc AI runs its language and embedding models with Microsoft Foundry Local, stores document chunks in SQLite, and provides a Streamlit interface. After the required models are downloaded, document processing and question answering can run locally without a cloud API.
+
+## Demo
+
+[Watch the LocalDoc AI demo video on Google Drive](https://drive.google.com/file/d/1IJI638Bv6k7rmfMSZJ0zgOqCGCQ8ILFL/view?usp=drive_link)
 
 ## Features
 
-- Runs AI models locally with Microsoft Foundry Local
-- Stores document chunks and embeddings in SQLite
-- Uses semantic search and cosine similarity
-- Generates answers using retrieved context
-- Displays retrieved sources and similarity scores
-- Refuses to answer when the knowledge base is insufficient
-- Works offline after the models are downloaded
+- Upload multiple PDF, DOCX, and TXT documents
+- Extract text from document paragraphs and DOCX tables
+- Split documents into overlapping chunks
+- Generate embeddings in small batches for improved reliability
+- Store document chunks and embeddings in SQLite
+- Retrieve the most relevant chunks with cosine similarity
+- Generate answers using only the retrieved document context
+- Display sources, retrieved chunks, and similarity scores
+- Delete individual documents from the knowledge base
+- Clear chat history from the interface
+- Run locally without a cloud API after model setup
+
+## Supported File Types
+
+| Format | Support | Notes |
+| --- | --- | --- |
+| TXT | Yes | UTF-8 and Latin-1 text files |
+| PDF | Yes | Text-based PDFs; scanned PDFs require OCR |
+| DOCX | Yes | Paragraphs and table contents are supported |
 
 ## Technologies
 
 - Python 3.13
 - Microsoft Foundry Local
+- Streamlit
 - SQLite
 - Qwen3 Embedding 0.6B
 - Phi-3.5 Mini
+- PyPDF
+- python-docx
 - Cosine similarity
 
+## How It Works
+
+1. The user uploads one or more PDF, DOCX, or TXT documents.
+2. Text is extracted, cleaned, and divided into overlapping chunks.
+3. Qwen3 Embedding converts each chunk into a numerical vector.
+4. Chunks, source names, and embeddings are stored in SQLite.
+5. The user's question is converted into an embedding.
+6. Cosine similarity ranks the stored chunks by relevance.
+7. The most relevant chunks are passed to Phi-3.5 Mini as context.
+8. The model answers using only the retrieved context.
+9. The interface displays the answer together with its sources and similarity scores.
+
+## Requirements
+
+- Windows
+- Python 3.13
+- Git
+- Internet access for the initial model download
+- Sufficient free memory and disk space for the local models
+
 ## Installation
+
+Clone the repository:
+
+```bat
+git clone https://github.com/egemresezen/localrag.git
+cd localrag
+```
 
 Create and activate a virtual environment:
 
@@ -35,59 +81,72 @@ py -3.13 -m venv .venv
 Install the dependencies:
 
 ```bat
+python -m pip install --upgrade pip
 pip install -r requirements.txt
-```
-
-## Prepare the Knowledge Base
-
-Generate embeddings and save the document chunks to SQLite:
-
-```bat
-python ingest.py
 ```
 
 ## Run the Application
 
+Start the Streamlit interface:
+
 ```bat
-python main.py
+streamlit run app.py
 ```
 
-Type `quit` to close the application.
-
-## Example Questions
+If the browser does not open automatically, visit:
 
 ```text
-How does RAG reduce hallucinations?
-Which database is used for local storage?
-What are embeddings?
-Who founded Microsoft?
+http://localhost:8501
 ```
 
-The final question cannot be answered using the provided documents, so the assistant should state that the knowledge base does not contain enough information.
+The first start may take longer because Foundry Local checks, downloads, and loads the selected models.
 
-## How It Works
+## Usage
 
-1. Text files are read from the `documents` directory.
-2. Documents are divided into smaller chunks.
-3. The Qwen3 embedding model converts each chunk into a numerical vector.
-4. Document chunks and vectors are stored in SQLite.
-5. The user's question is converted into an embedding.
-6. Cosine similarity finds the most relevant document chunks.
-7. The retrieved context is sent to the local language model.
-8. The model generates an answer using only the retrieved information.
+1. Open the **Knowledge Base** tab.
+2. Select one or more PDF, DOCX, or TXT files.
+3. Click **Add to Knowledge Base** and wait for indexing to finish.
+4. Open the **Chat** tab.
+5. Ask a question about the uploaded documents.
+6. Expand **Retrieved sources** to inspect the source text and similarity scores.
+7. Test grounding by asking a question whose answer is not present in the documents.
 
 ## Project Structure
 
-- `documents/`: Local knowledge-base documents
-- `database.py`: SQLite database operations
-- `ingest.py`: Document ingestion and embedding generation
-- `main.py`: Interactive RAG application
-- `embedding_test.py`: Semantic-search test
-- `requirements.txt`: Python dependencies
+```text
+localrag/
+|-- app.py                 # Streamlit user interface
+|-- rag_service.py         # Model loading, retrieval, and answer generation
+|-- document_processor.py  # PDF, DOCX, and TXT extraction and chunking
+|-- database.py            # SQLite storage operations
+|-- requirements.txt       # Python dependencies
+`-- README.md              # Project documentation
+```
+
+The `rag.db` SQLite database is created locally and stores the indexed document chunks and embeddings.
+
+## Grounded Answering
+
+The system prompt instructs the language model to answer only from retrieved document context. When the required information is unavailable, the expected response is:
+
+```text
+I do not have enough information in the knowledge base.
+```
+
+This behavior helps reduce unsupported answers and makes the result easier to verify through the displayed sources.
 
 ## Limitations
 
-- The current knowledge base contains a small document collection.
-- Similarity search compares vectors in Python and is intended for small datasets.
-- Answer quality depends on the selected local language model.
-- The current interface is command-line based.
+- Scanned or image-only PDFs require OCR, which is not included.
+- CPU-based local inference can take longer than cloud-based inference.
+- Similarity search is performed in Python and is intended for small or medium local knowledge bases.
+- Answer quality depends on the selected models and the quality of the uploaded documents.
+- Retrieved context reduces hallucinations but cannot guarantee that every generated answer is correct.
+
+## Privacy
+
+Documents, embeddings, the SQLite database, retrieval, and answer generation remain on the local machine. A cloud API key is not required.
+
+## Author
+
+Developed by [Ege Emre Sezen](https://github.com/egemresezen).
